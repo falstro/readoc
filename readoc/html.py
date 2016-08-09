@@ -1,5 +1,5 @@
 from .stream import Stream
-from .readoc import Readoc
+from .readoc import Document
 
 
 class HTML(Stream):
@@ -67,7 +67,7 @@ class HTML(Stream):
 
 if __name__ == '__main__':
     import sys
-    readoc = Readoc(sys.stdin)
+    readoc = Document(sys.stdin)
     html = HTML(readoc,
                 title='h1 class="title"',
                 sectionlevel=1

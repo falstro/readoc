@@ -1,10 +1,37 @@
+import re
 from collections import deque
 
 from . import tags
 
 
-class Readoc(object):
-    (INIT,
+class Header(object):
+    def __init__(self, key, left, right):
+        self.key = key
+        self.values = []
+        self.left = left
+        self.right = right
+
+    def fit(self, left, right):
+        if (self.left <= left < self.right or
+                left <= self.left < right):
+            self.left = min(left, self.left)
+            self.right = max(left, self.right)
+            return True
+        return False
+
+    def add(self, value):
+        self.values.append(value)
+
+    def __repr__(self):
+        return self.key + repr(self.values)
+
+_header_match = re.compile('([^\s:]+): *((?:\S+\s)*\S+)|'
+                           '((?:\S+\s)*\S+)')
+# '([^\s:]+(?:\s(?:\S+\s)*\S+)?)')
+
+
+class Document(object):
+    (HEAD,
      TITLE,
      LIMBO,
      PARA) = range(4)
@@ -13,8 +40,9 @@ class Readoc(object):
         self.fp = fp
         self.indent = []
         self.coindent = 0
-        self.state = Readoc.INIT
+        self.state = Document.HEAD
         self.separated = False
+        self.heads = []
 
         self._queue = deque()
         self._end = False
@@ -45,7 +73,7 @@ class Readoc(object):
         return n
 
     def _clean_para(self):
-        if self.state >= Readoc.PARA:
+        if self.state >= Document.PARA:
             self.q(tags.para(False))
 
     def _clean_lists(self):
@@ -70,16 +98,39 @@ class Readoc(object):
         separated = self.separated
         self.separated = False
 
+        if self.state == Document.HEAD:
+            if separated:
+                self.state = Document.TITLE
+            else:
+                for m in _header_match.finditer(line):
+                    if m.group(1) is not None:
+                        # new header
+                        h = Header(m.group(1), m.start(1), m.end(2))
+                        h.add(m.group(2))
+                        self.heads.append(h)
+                    else:
+                        # continuation
+                        for h in reversed(self.heads):
+                            if(h.fit(m.start(3), m.end(3))):
+                                h.add(m.group(3))
+                                break
+                        else:
+                            # no match, assume a missing empty line.
+                            self.state = Document.TITLE
+
+                if self.state == Document.HEAD:
+                    return
+
         i = len(line)
         line = line.lstrip()
         i -= len(line)
 
         o = 0
 
-        if self.state <= Readoc.TITLE:
+        if self.state <= Document.TITLE:
             if i > 5:
                 self.q(tags.title(line))
-                self.state = Readoc.TITLE
+                self.state = Document.TITLE
                 return
 
         if i > 0:
@@ -110,9 +161,9 @@ class Readoc(object):
                     self.indent.append((i, tag))
                     self.q(tag(len(self.indent), lbl))
                 elif i > xi:
-                    if self.state == Readoc.LIMBO:
+                    if self.state == Document.LIMBO:
                         self.q(tags.para(True))
-                        self.state = Readoc.PARA
+                        self.state = Document.PARA
                     self.indent.append((i, tag))
                     self.q(tag(len(self.indent), lbl))
 
@@ -127,6 +178,9 @@ class Readoc(object):
         # We're looking at body text or possibly a section heading,
         # clear out running lists.
         self._clean_lists()
+
+        if self.state < Document.LIMBO:
+            self.state = Document.LIMBO
 
         if i == 0 and line:
             level = 0
@@ -147,18 +201,18 @@ class Readoc(object):
 
             if level:
                 o = self._skip(line, o)
-                if self.state == Readoc.PARA:
+                if self.state == Document.PARA:
                     self.q(tags.para(False))
-                    self.state = Readoc.LIMBO
+                    self.state = Document.LIMBO
                 self.q(tags.section(level, numbered, line[o:]))
                 return
 
-        if separated and self.state == Readoc.PARA:
+        if separated and self.state == Document.PARA:
             self.q(tags.para(False))
-            self.state = Readoc.LIMBO
+            self.state = Document.LIMBO
 
-        if self.state != Readoc.PARA:
-            self.state = Readoc.PARA
+        if self.state != Document.PARA:
+            self.state = Document.PARA
             self.q(tags.para(True))
 
         self.q(tags.text(line))

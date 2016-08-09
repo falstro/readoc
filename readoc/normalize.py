@@ -2,7 +2,7 @@ import textwrap
 from math import floor
 
 from .stream import Stream
-from .readoc import Readoc
+from .readoc import Document
 
 
 class Normalize(Stream):
@@ -16,12 +16,14 @@ class Normalize(Stream):
         while True:
             yield b
 
-    def __init__(self, cord, justify=False):
+    def __init__(self, cord, justify=False, width=78, section_trail=False):
         super(Normalize, self).__init__(cord)
 
         self.__text = []
         self.__lists = []
         self.__level = 0
+        self.__width = width
+        self.__section_trail = section_trail
         self.__wrapper = textwrap.TextWrapper()
         self.__reset()
 
@@ -60,7 +62,7 @@ class Normalize(Stream):
             return ()
         wrapped = self.__wrapper.wrap(' '.join(self.__text))
         left = len(self.__wrapper.initial_indent)
-        right = 78
+        right = self.__width
         last = wrapped.pop()
         r = tuple(self.__align(w, left, right) + '\n' for w in wrapped)
         del self.__text[:]
@@ -69,10 +71,10 @@ class Normalize(Stream):
     def __reset(self):
         self.__wrapper.initial_indent = '  '
         self.__wrapper.subsequent_indent = '  '
-        self.__wrapper.width = 76
+        self.__wrapper.width = self.__width
 
     def title(self, text):
-        indent = (80-len(text))/2
+        indent = (self.__width-len(text))/2
         if indent < 5:
             indent = 5
         return self.__flush() + (' '*indent, text, '\n'*3)
@@ -84,6 +86,8 @@ class Normalize(Stream):
             sections = [0] + self.sections[1:level]
 
         sections = '.'.join(str(l) for l in sections)
+        if self.__section_trail:
+            sections += '.'
         return self.__flush() + ('%s %s\n\n' % (sections, text),)
 
     def para(self, begin):
@@ -126,7 +130,7 @@ class Normalize(Stream):
         ind = '  '*(self.__level+1)
         self.__wrapper.initial_indent = ind + b
         self.__wrapper.subsequent_indent = ind + ' '*len(b)
-        self.__wrapper.width = 78
+        self.__wrapper.width = self.__width
         self.__text.append(text)
         return r
 
@@ -140,7 +144,7 @@ class Normalize(Stream):
 
 if __name__ == '__main__':
     import sys
-    readoc = Readoc(sys.stdin)
+    readoc = Document(sys.stdin)
     normalize = Normalize(readoc, justify=True)
 
     normalize.dump(sys.stdout)

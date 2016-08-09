@@ -1,1 +1,1 @@
-from .readoc import Readoc
+from .readoc import Document  # noqa
