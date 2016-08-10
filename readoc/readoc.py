@@ -3,6 +3,11 @@ from collections import deque
 
 from . import tags
 
+_header_match = re.compile('([^\s:]+): *((?:\S+\s)*\S+)|'
+                           '((?:\S+\s)*\S+)')
+_embed_match = re.compile('\s*(-\s*)')
+# '([^\s:]+(?:\s(?:\S+\s)*\S+)?)')
+
 
 class Header(object):
     def __init__(self, key, left, right):
@@ -22,12 +27,86 @@ class Header(object):
     def add(self, value):
         self.values.append(value)
 
+    def export(self):
+        return (self.key, self.values)
+
     def __repr__(self):
         return self.key + repr(self.values)
 
-_header_match = re.compile('([^\s:]+): *((?:\S+\s)*\S+)|'
-                           '((?:\S+\s)*\S+)')
-# '([^\s:]+(?:\s(?:\S+\s)*\S+)?)')
+
+class Headers(object):
+    def __init__(self):
+        self.list = []
+
+    def read(self, line):
+        hit = False
+        for m in _header_match.finditer(line):
+            hit = True
+            if m.group(1) is not None:
+                # new header
+                h = Header(m.group(1), m.start(1), m.end(2))
+                h.add(m.group(2))
+                self.list.append(h)
+            else:
+                # continuation
+                for h in reversed(self.list):
+                    if(h.fit(m.start(3), m.end(3))):
+                        h.add(m.group(3))
+                        break
+                else:
+                    # no match
+                    return False
+        if not hit:
+            # empty line
+            return False
+        return True
+
+
+class Embeded(object):
+    def __init__(self):
+        self.state = 0
+
+    def check(self, line):
+        s = 0
+        e = len(line)
+        c = 0
+        while s < e:
+            m = _embed_match.match(line, s)
+            if not m:
+                return False
+            c += 1
+            s = m.end()
+
+        return c
+
+    def start(self, line):
+        em = self.check(line)
+        if em > 3:
+            self.state = 1
+            self.body = []
+            self.marker = em
+            self.lead = line
+            self.trail = None
+            self.headers = Headers()
+            return True
+
+        return False
+
+    def read(self, line):
+        if self.state == 1:
+            em = self.check(line)
+            if em == self.marker:
+                self.state = 2
+                self.trail = line
+            else:
+                self.body.append(line)
+        elif self.state == 2:
+            if not self.headers.read(line):
+                self.state = 0
+                return tags.embed(self.lead, self.body, self.trail,
+                                  self.headers.list)
+
+        return None
 
 
 class Document(object):
@@ -42,7 +121,8 @@ class Document(object):
         self.coindent = 0
         self.state = Document.HEAD
         self.separated = False
-        self.heads = []
+        self.headers = Headers()
+        self.embeded = Embeded()
 
         self._queue = deque()
         self._end = False
@@ -87,6 +167,12 @@ class Document(object):
         self.q(tags.end())
 
     def line(self, line):
+        if self.embeded.state:
+            tag = self.embeded.read(line)
+            if tag:
+                self.q(tag)
+            return
+
         line = line.rstrip().expandtabs()
         # import sys
         # sys.stderr.write('\n>>> %s\n' % line)
@@ -102,24 +188,12 @@ class Document(object):
             if separated:
                 self.state = Document.TITLE
             else:
-                for m in _header_match.finditer(line):
-                    if m.group(1) is not None:
-                        # new header
-                        h = Header(m.group(1), m.start(1), m.end(2))
-                        h.add(m.group(2))
-                        self.heads.append(h)
-                    else:
-                        # continuation
-                        for h in reversed(self.heads):
-                            if(h.fit(m.start(3), m.end(3))):
-                                h.add(m.group(3))
-                                break
-                        else:
-                            # no match, assume a missing empty line.
-                            self.state = Document.TITLE
-
-                if self.state == Document.HEAD:
+                if self.headers.read(line):
                     return
+                self.state = Document.TITLE
+
+        if self.embeded.start(line):
+            return
 
         i = len(line)
         line = line.lstrip()

@@ -18,6 +18,8 @@ class Stream(object):
 
             tags.text: self._text,
 
+            tags.embed: self._embed,
+
             tags.end: self._end
         }
         self.sections = []
@@ -88,6 +90,12 @@ class Stream(object):
         return self.text(text)
 
     def text(self, text):
+        return ()
+
+    def _embed(self, lead, body, trail, headers):
+        return self.embed(lead, body, trail, headers)
+
+    def embed(self, lead, body, trail, headers):
         return ()
 
     def unknown(self, args):

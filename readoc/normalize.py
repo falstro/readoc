@@ -73,11 +73,14 @@ class Normalize(Stream):
         self.__wrapper.subsequent_indent = '  '
         self.__wrapper.width = self.__width
 
-    def title(self, text):
+    def _center(self, text, minindent=0):
         indent = (self.__width-len(text))/2
-        if indent < 5:
-            indent = 5
-        return self.__flush() + (' '*indent, text, '\n'*3)
+        if indent < minindent:
+            indent = minindent
+        return (' '*indent, text)
+
+    def title(self, text):
+        return self.__flush() + self._center(text, 5) + ('\n'*3,)
 
     def section(self, level, numbered, text):
         if numbered:
@@ -137,6 +140,16 @@ class Normalize(Stream):
     def text(self, text):
         self.__text.append(text)
         return ()
+
+    def embed(self, lead, body, trail, headers):
+        for x in self._center(lead.strip()):
+            yield x
+        yield '\n'
+        for x in body:
+            yield x
+        for x in self._center(trail.strip()):
+            yield x
+        yield '\n'
 
     def end(self):
         self.__flush()

@@ -18,4 +18,6 @@ item = Tag('item')
 
 text = Tag('text')
 
+embed = Tag('embed')
+
 end = Tag('end')
