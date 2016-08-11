@@ -92,6 +92,11 @@ class Embeded(object):
 
         return False
 
+    def end(self):
+        self.state = 0
+        return tags.embed(self.lead, self.body, self.trail,
+                          self.headers.list)
+
     def read(self, line):
         if self.state == 1:
             em = self.check(line)
@@ -102,9 +107,7 @@ class Embeded(object):
                 self.body.append(line)
         elif self.state == 2:
             if not self.headers.read(line):
-                self.state = 0
-                return tags.embed(self.lead, self.body, self.trail,
-                                  self.headers.list)
+                return self.end()
 
         return None
 
@@ -152,17 +155,21 @@ class Document(object):
             raise StopIteration()
         return n
 
-    def _clean_para(self):
-        if self.state >= Document.PARA:
-            self.q(tags.para(False))
-
     def _clean_lists(self):
         for lvl, (xi, xt) in enumerate(self.indent):
             self.q(xt(len(self.indent) - lvl, None))
         del self.indent[:]
 
-    def end(self):
+    def _clean_para(self):
         self._clean_lists()
+        if self.state >= Document.PARA:
+            self.q(tags.para(False))
+            self.state = Document.LIMBO
+
+    def end(self):
+        if self.embeded.state:
+            self.q(self.embeded.end())
+
         self._clean_para()
         self.q(tags.end())
 
@@ -193,6 +200,8 @@ class Document(object):
                 self.state = Document.TITLE
 
         if self.embeded.start(line):
+            if separated:
+                self._clean_para()
             return
 
         i = len(line)
