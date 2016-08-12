@@ -1,6 +1,9 @@
 from .stream import Stream
 from .readoc import Document
 
+import hashlib
+import subprocess
+
 _sections = {
     1: 'section',
     2: 'subsection',
@@ -88,9 +91,37 @@ class Latex(Stream):
     def item(self, text):
         return ('\\item ', text, '\n')
 
+    def _graphviz(self, cmd, lead, body, trail):
+        body = ''.join(body)
+        fname = hashlib.md5(body).hexdigest()
+        cmd.append('-o')
+        cmd.append(fname + '.eps')
+        dot = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+
+        dot.stdin.write(lead)
+        dot.stdin.write(body)
+        dot.stdin.write(trail)
+        dot.stdin.close()
+        dot.wait()
+
+        return ('\\includegraphics{', fname, '}\n')
+
+    def _dot(self, tv, body):
+        graph = 'graph'
+        for line in body:
+            if '->' in line:
+                graph = 'digraph'
+                break
+        return self._graphviz(['/usr/bin/{}'.format(tv), '-Teps'],
+                              '{} x {{'.format(graph), body, '}')
+
+    def _msc(self, tv, body):
+        return self._graphviz(['/usr/bin/mscgen', '-T', 'eps'],
+                              'msc {', body, '}')
+
     def _figure(self, values):
         return (
-            ('\\begin{figure}[htbp]\n',),
+            ('\\begin{figure}[htbp]\n', '\\centering\n'),
             ('\\caption{', ' '.join(values), '}\n', '\\end{figure}\n')
         )
 
@@ -103,6 +134,14 @@ class Latex(Stream):
             if h.key == 't':
                 tv = h.values[0]
                 t = {
+                    'dot': self._dot,
+                    'neato': self._dot,
+                    'twopi': self._dot,
+                    'circo': self._dot,
+                    'fdp': self._dot,
+                    'sfdp': self._dot,
+                    'patchwork': self._dot,
+                    'msc': self._msc,
                 }.get(tv, None)
             elif h.key == 'Figure':
                 before, after = self._figure(h.values)
