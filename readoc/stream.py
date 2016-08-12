@@ -8,6 +8,8 @@ class Stream(object):
         self.cord = cord
 
         self.map = {
+            tags.headers: self._headers,
+
             tags.title: self._title,
             tags.section: self._section,
             tags.para: self._para,
@@ -34,6 +36,12 @@ class Stream(object):
             else:
                 self.unknown(e)
         self.end()
+
+    def _headers(self, headers):
+        return self.headers(headers)
+
+    def headers(self, headers):
+        return ()
 
     def _title(self, text):
         return self.title(text)

@@ -6,8 +6,8 @@ import re
 
 
 class HTML(Stream):
-    def __init__(self, cord, title='h1', sectionlevel=2):
-        super(HTML, self).__init__(cord)
+    def __init__(self, readoc, title='h1', sectionlevel=2):
+        super(HTML, self).__init__(readoc)
         self.__level = 0
         self.__first = True
 

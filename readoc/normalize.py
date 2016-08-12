@@ -16,8 +16,8 @@ class Normalize(Stream):
         while True:
             yield b
 
-    def __init__(self, cord, justify=False, width=78, section_trail=False):
-        super(Normalize, self).__init__(cord)
+    def __init__(self, readoc, justify=False, width=78, section_trail=False):
+        super(Normalize, self).__init__(readoc)
 
         self.__text = []
         self.__lists = []

@@ -192,12 +192,10 @@ class Document(object):
         self.separated = False
 
         if self.state == Document.HEAD:
-            if separated:
-                self.state = Document.TITLE
-            else:
-                if self.headers.read(line):
-                    return
-                self.state = Document.TITLE
+            if not separated and self.headers.read(line):
+                return
+            self.q(tags.headers(self.headers.list))
+            self.state = Document.TITLE
 
         if self.embeded.start(line):
             if separated:
