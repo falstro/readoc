@@ -56,11 +56,14 @@ class Latex(Stream):
         if not numbered and level == 1:
             if text.lower() != 'abstract':
                 r = r + ('\\let\\oabstractname\\abstractname',
-                         '\\renewcommand{\\abstractname}{', text, '}')
-            self.__section_end = (
-                '\\end{abstract}\n',
-                '\\renewcommand{\\abstractname}{\\oabstractname}\n',
-            )
+                         '\\renewcommand{\\abstractname}{', text, '}\n')
+                self.__section_end = (
+                    '\\end{abstract}\n',
+                    '\\renewcommand{\\abstractname}{\\oabstractname}\n',
+                )
+            else:
+                self.__section_end = ('\\end{abstract}\n',)
+
             return r + ('\\begin{abstract}\n',)
 
         if numbered and self.__toc:
