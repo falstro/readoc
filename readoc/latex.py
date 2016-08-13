@@ -107,7 +107,7 @@ class Latex(Stream):
         dot.stdin.close()
         dot.wait()
 
-        return ('\\includegraphics{', fname, '}\n')
+        return ('\\centerline{\\includegraphics{', fname, '}}\n')
 
     def _dot(self, tv, body):
         graph = 'graph'
