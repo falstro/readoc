@@ -156,7 +156,7 @@ class Document(object):
         return n
 
     def _clean_lists(self):
-        for lvl, (xi, xt) in enumerate(self.indent):
+        for lvl, (xi, xt) in reversed(list(enumerate(self.indent))):
             self.q(xt(len(self.indent) - lvl, None))
         del self.indent[:]
 
