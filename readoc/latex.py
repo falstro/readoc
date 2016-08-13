@@ -45,7 +45,8 @@ class Latex(Stream):
     def section(self, level, numbered, text):
         if self.__preamble:
             self.__preamble = False
-            r = ('\\begin{document}\n', '\\maketitle\n')
+            r = ('\\begin{document}\n', '\\maketitle\n',
+                 '\\let\\oabstractname\\abstractname\n')
         else:
             r = ()
 
@@ -55,8 +56,7 @@ class Latex(Stream):
 
         if not numbered and level == 1:
             if text.lower() != 'abstract':
-                r = r + ('\\let\\oabstractname\\abstractname',
-                         '\\renewcommand{\\abstractname}{', text, '}\n')
+                r = r + ('\\renewcommand{\\abstractname}{', text, '}\n')
                 self.__section_end = (
                     '\\end{abstract}\n',
                     '\\renewcommand{\\abstractname}{\\oabstractname}\n',
