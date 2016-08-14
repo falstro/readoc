@@ -1,6 +1,7 @@
 from .stream import Stream
 from .readoc import Document
 
+from itertools import chain
 import hashlib
 import subprocess
 
@@ -27,6 +28,13 @@ class Latex(Stream):
         self.__toc = toc
         self.__def_headers = def_headers
 
+    def _sanitize(self, text):
+        # TODO sanitize text (i.e. escape latex control characters)
+        return text
+
+    def _sanitize_all(self, values):
+        return (self._sanitize(v) for v in values)
+
     def headers(self, headers):
         hs = ['\\makeatletter']
         for h in headers:
@@ -35,37 +43,36 @@ class Latex(Stream):
                 hs.append('\\')
                 hs.append(k)
                 hs.append('{')
-                hs.append('\n'.join(h.values))
+                hs.append('\n'.join(self._sanitize_all(h.values)))
                 hs.append('}\n')
             elif self.__def_headers:
                 hs.append('\\def\\')
                 hs.append(self.__def_headers)
                 hs.append(h.key)
                 hs.append('{')
-                hs.append('\n'.join(h.values))
+                hs.append('\n'.join(self._sanitize_all(h.values)))
                 hs.append('}\n')
 
         hs.append('\\makeatother')
         return hs
 
     def title(self, text):
-        return ('\\title{', text, '}\n')
+        return ('\\title{', self._sanitize(text), '}\n')
 
     def section(self, level, numbered, text):
         if self.__preamble:
             self.__preamble = False
             r = ('\\begin{document}\n', '\\maketitle\n',
                  '\\let\\oabstractname\\abstractname\n')
+        elif self.__section_end:
+            r = self.__section_end
+            self.__section_end = None
         else:
             r = ()
 
-        if self.__section_end:
-            r = self.__section_end
-            self.__section_end = None
-
         if not numbered and level == 1:
             if text.lower() != 'abstract':
-                r = r + ('\\renewcommand{\\abstractname}{', text, '}\n')
+                r = chain(r, ('\\renewcommand{\\abstractname}{', text, '}\n'))
                 self.__section_end = (
                     '\\end{abstract}\n',
                     '\\renewcommand{\\abstractname}{\\oabstractname}\n',
@@ -73,14 +80,15 @@ class Latex(Stream):
             else:
                 self.__section_end = ('\\end{abstract}\n',)
 
-            return r + ('\\begin{abstract}\n',)
+            return chain(r, ('\\begin{abstract}\n',))
 
         if numbered and self.__toc:
-            r = r + ('\\tableofcontents\n',)
+            r = chain(r, ('\\tableofcontents\n',))
             self.__toc = False
 
-        return r + ('\\', _sections.get(level, '\n'),
-                    '*' if not numbered else '', '{', text, '}\n')
+        return chain(r, ('\\', _sections.get(level, '\n'),
+                         '*' if not numbered else '',
+                         '{', self._sanitize(text), '}\n'))
 
     def para(self, begin):
         if(begin):
@@ -101,7 +109,7 @@ class Latex(Stream):
             return ('\\end{enumerate}\n',)
 
     def item(self, text):
-        return ('\\item ', text, '\n')
+        return ('\\item ', self._sanitize(text), '\n')
 
     def _graphviz(self, cmd, lead, body, trail):
         body = ''.join(body)
@@ -134,7 +142,8 @@ class Latex(Stream):
     def _figure(self, values):
         return (
             ('\\begin{figure}[htbp]\n', '\\centering\n'),
-            ('\\caption{', ' '.join(values), '}\n', '\\end{figure}\n')
+            ('\\caption{', ' '.join(self._sanitize_all(values)), '}\n',
+             '\\end{figure}\n')
         )
 
     def embed(self, lead, body, trail, headers):
@@ -161,15 +170,15 @@ class Latex(Stream):
         if t:
             body = t(tv, body)
         else:
-            body = ('Unable...',)
+            body = ('Unable to generate embed',)
 
-        return before + body + after
+        return chain(before, body, after)
 
     def text(self, text):
-        return (text,)
+        return (self._sanitize(text),)
 
     def end(self):
-        return ('\\end{document}')
+        return ('\\end{document}',)
 
 if __name__ == '__main__':
     import sys
