@@ -20,14 +20,15 @@ _headers = {
 
 
 class Latex(Stream):
-    def __init__(self, readoc, toc=False):
+    def __init__(self, readoc, toc=False, def_headers=False):
         super(Latex, self).__init__(readoc)
         self.__section_end = None
         self.__preamble = True
         self.__toc = toc
+        self.__def_headers = def_headers
 
     def headers(self, headers):
-        hs = []
+        hs = ['\\makeatletter']
         for h in headers:
             k = _headers.get(h.key.lower(), None)
             if k:
@@ -36,7 +37,15 @@ class Latex(Stream):
                 hs.append('{')
                 hs.append('\n'.join(h.values))
                 hs.append('}\n')
+            elif self.__def_headers:
+                hs.append('\\def\\')
+                hs.append(self.__def_headers)
+                hs.append(h.key)
+                hs.append('{')
+                hs.append('\n'.join(h.values))
+                hs.append('}\n')
 
+        hs.append('\\makeatother')
         return hs
 
     def title(self, text):
@@ -165,6 +174,6 @@ class Latex(Stream):
 if __name__ == '__main__':
     import sys
     readoc = Document(sys.stdin)
-    latex = Latex(readoc, toc=True)
+    latex = Latex(readoc, toc=True, def_headers='readoc@')
 
     latex.dump(sys.stdout)
