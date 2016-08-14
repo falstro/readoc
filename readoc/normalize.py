@@ -4,6 +4,8 @@ from math import floor
 from .stream import Stream
 from .readoc import Document
 
+from itertools import chain
+
 
 class Normalize(Stream):
     def __numeric(self, i=1):
@@ -142,17 +144,17 @@ class Normalize(Stream):
         return ()
 
     def embed(self, lead, body, trail, headers):
-        for x in self._center(lead.strip()):
-            yield x
-        yield '\n'
-        for x in body:
-            yield x
-        for x in self._center(trail.strip()):
-            yield x
-        yield '\n'
+        return chain(
+            self.__flush(),
+            self._center(lead.strip()),
+            ('\n',),
+            body,
+            self._center(trail.strip()),
+            ('\n',)
+        )
 
     def end(self):
-        self.__flush()
+        return self.__flush()
 
 
 if __name__ == '__main__':
