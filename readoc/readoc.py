@@ -159,6 +159,7 @@ class Document(object):
         for lvl, (xi, xt) in reversed(list(enumerate(self.indent))):
             self.q(xt(len(self.indent) - lvl, None))
         del self.indent[:]
+        self.coindent = 0
 
     def _clean_para(self):
         self._clean_lists()
@@ -249,10 +250,10 @@ class Document(object):
                     self.q(tag(len(self.indent), lbl))
 
                 self.q(tags.item(line[o:]))
-                self.coindent = o
+                self.coindent = i+o
                 return
 
-            if i >= self.coindent:
+            if self.indent and i >= self.coindent:
                 self.q(tags.text(line[o:]))
                 return
 
