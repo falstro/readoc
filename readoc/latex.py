@@ -175,7 +175,7 @@ class Latex(Stream):
         return chain(before, body, after)
 
     def text(self, text):
-        return (self._sanitize(text),)
+        return (self._sanitize(text), '\n')
 
     def end(self):
         return ('\\end{document}',)
