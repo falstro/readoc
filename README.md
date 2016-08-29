@@ -1,11 +1,14 @@
-readoc - Human readable text documents
-======================================
+readoc - Human readable plain text documents
+============================================
 
 ReaDoc is intended to provide a mark-up format aimed at more formal
 documents, while still using a text file that looks good as-is.
 
 This is a reimplementation in python from an earlier project built in C
 and is currently far from feature complete.
+
+The [README.txt](README.txt) documents the file format specification, and
+is itself a readoc document.
 
 Examples
 --------
