@@ -32,7 +32,7 @@ class Stream(object):
             if fn:
                 text = fn(*e[1:])
                 if text:
-                    out.write(''.join(text))
+                    out.write(u''.join(text))
             else:
                 self.unknown(e)
         self.end()
@@ -94,10 +94,10 @@ class Stream(object):
     def item(self, text):
         return ()
 
-    def _text(self, text):
-        return self.text(text)
+    def _text(self, text, emph):
+        return self.text(text, emph)
 
-    def text(self, text):
+    def text(self, text, emph):
         return ()
 
     def _embed(self, lead, body, trail, headers):

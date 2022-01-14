@@ -3,10 +3,11 @@ from collections import deque
 
 from . import tags
 
-_header_match = re.compile('([^\s:]+): *((?:\S+\s)*\S+)|'
-                           '((?:\S+\s)*\S+)')
-_embed_match = re.compile('\s*(-\s*)')
+_header_match = re.compile(r'([^\s:]+): *((?:\S+\s)*\S+)|'
+                           r'((?:\S+\s)*\S+)')
+_embed_match = re.compile(r'\s*(-\s*)')
 # '([^\s:]+(?:\s(?:\S+\s)*\S+)?)')
+_emph_split = re.compile(r'(\b(\*|_)\2*\b|(\*|_)\3*\b|\b(\*|_)\4*)')
 
 
 class Header(object):
@@ -94,6 +95,11 @@ class Embeded(object):
 
     def end(self):
         self.state = 0
+        for h in self.headers.list:
+            if h.key == '!':
+                for v in h.values:
+                    if v == 'discard':
+                        return None
         return tags.embed(self.lead, self.body, self.trail,
                           self.headers.list)
 
@@ -173,6 +179,26 @@ class Document(object):
 
         self._clean_para()
         self.q(tags.end())
+
+    def _text(self, line):
+        es = _emph_split.split(line)
+        i = iter(es)
+        emph = 0
+        try:
+            while True:
+                txt = next(i)
+                self.q(tags.text(txt, emph))
+                run, both, lead, trail = next(i), next(i), next(i), next(i)
+                lead = lead or both
+                trail = trail or both
+                count = len(run)
+                if lead:
+                    emph |= count
+                elif trail:
+                    emph &= ~count
+        except StopIteration:
+            pass
+        self.q(tags.text('\n', 0))
 
     def line(self, line):
         if self.embeded.state:
@@ -254,7 +280,7 @@ class Document(object):
                 return
 
             if self.indent and i >= self.coindent:
-                self.q(tags.text(line[o:]))
+                self._text(line[o:])
                 return
 
         # We're looking at body text or possibly a section heading,
@@ -297,7 +323,7 @@ class Document(object):
             self.state = Document.PARA
             self.q(tags.para(True))
 
-        self.q(tags.text(line))
+        self._text(line)
 
     def num(self, line, o):
         b = o

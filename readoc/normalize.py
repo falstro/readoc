@@ -29,10 +29,17 @@ class Normalize(Stream):
         self.__wrapper = textwrap.TextWrapper()
         self.__reset()
 
-        if justify:
+        if justify is True:
             self.__align = self.__justify
+        elif justify is False:
+            self.__align = self.__packjustify
         else:
             self.__align = self.__nojustify
+
+    def __packjustify(self, line, left, right):
+        # TODO Be wary of markup containing spaces.
+        words = line[left:].split()
+        return line[:left] + ' '.join(words)
 
     def __justify(self, line, left, right):
         # TODO Be wary of markup containing spaces.
@@ -159,7 +166,8 @@ class Normalize(Stream):
 
 if __name__ == '__main__':
     import sys
-    readoc = Document(sys.stdin)
-    normalize = Normalize(readoc, justify=True)
+    import codecs
+    readoc = Document(codecs.getreader('utf-8')(sys.stdin))
+    normalize = Normalize(readoc, justify=None)
 
-    normalize.dump(sys.stdout)
+    normalize.dump(codecs.getwriter('utf-8')(sys.stdout))

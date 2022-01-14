@@ -1,9 +1,8 @@
 from .stream import Stream
 from .readoc import Document
+from . import plugins
 
 from itertools import chain
-import hashlib
-import subprocess
 
 _sections = {
     1: 'section',
@@ -19,6 +18,8 @@ _headers = {
     'date': 'date',
 }
 
+_graphics = ('pdf', 'eps', 'png')
+
 
 class Latex(Stream):
     def __init__(self, readoc, toc=False, def_headers=False):
@@ -27,6 +28,8 @@ class Latex(Stream):
         self.__preamble = True
         self.__toc = toc
         self.__def_headers = def_headers
+
+        self.__titled = None
 
     def _sanitize(self, text):
         # TODO sanitize text (i.e. escape latex control characters)
@@ -57,7 +60,22 @@ class Latex(Stream):
         return hs
 
     def title(self, text):
-        return ('\\title{', self._sanitize(text), '}\n')
+        if not self.__titled:
+            self.__titled = self._sanitize(text)
+            return (
+                '\\makeatletter\\def\\@maintitle{', self.__titled, '}',
+                '\\title{', self.__titled, '}\n'
+            )
+        else:
+            self.__titled = self.__titled \
+                + '\\\\[7pt] \\large ' + self._sanitize(text)
+        return ('\\title{', self.__titled, '}\n')
+
+        # if self.__titled:
+        #     return ('\\renewcommand\\subtitle{', self._sanitize(text), '}\n')
+        # self.__titled = True
+        # return ('\\newcommand\\subtitle{}\n',
+        #         '\\title{', self._sanitize(text), '\\subtitle}\n')
 
     def section(self, level, numbered, text):
         if self.__preamble:
@@ -111,34 +129,6 @@ class Latex(Stream):
     def item(self, text):
         return ('\\item ', self._sanitize(text), '\n')
 
-    def _graphviz(self, cmd, lead, body, trail):
-        body = ''.join(body)
-        fname = hashlib.md5(body).hexdigest()
-        cmd.append('-o')
-        cmd.append(fname + '.eps')
-        dot = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-
-        dot.stdin.write(lead)
-        dot.stdin.write(body)
-        dot.stdin.write(trail)
-        dot.stdin.close()
-        dot.wait()
-
-        return ('\\centerline{\\includegraphics{', fname, '}}\n')
-
-    def _dot(self, tv, body):
-        graph = 'graph'
-        for line in body:
-            if '->' in line:
-                graph = 'digraph'
-                break
-        return self._graphviz(['/usr/bin/{}'.format(tv), '-Teps'],
-                              '{} x {{'.format(graph), body, '}')
-
-    def _msc(self, tv, body):
-        return self._graphviz(['/usr/bin/mscgen', '-T', 'eps'],
-                              'msc {', body, '}')
-
     def _figure(self, values):
         return (
             ('\\begin{figure}[htbp]\n', '\\centering\n'),
@@ -147,42 +137,47 @@ class Latex(Stream):
         )
 
     def embed(self, lead, body, trail, headers):
-        t = None
-        tv = None
         before = ()
         after = ()
+        plugin = plugins.embed(headers)
+        opts = []
         for h in headers:
-            if h.key == 't':
-                tv = h.values[0]
-                t = {
-                    'dot': self._dot,
-                    'neato': self._dot,
-                    'twopi': self._dot,
-                    'circo': self._dot,
-                    'fdp': self._dot,
-                    'sfdp': self._dot,
-                    'patchwork': self._dot,
-                    'msc': self._msc,
-                }.get(tv, None)
-            elif h.key == 'Figure':
+            if h.key.lower() == 'figure':
                 before, after = self._figure(h.values)
+            elif h.key.lower() == 'width':
+                opts.append('width=' + ' '.join(h.values))
+            elif h.key.lower() == 'height':
+                opts.append('height=' + ' '.join(h.values))
+            elif h.key.lower() == 'scale':
+                opts.append('scale=' + ' '.join(h.values))
 
-        if t:
-            body = t(tv, body)
+        if plugin:
+            fmt, fname = plugin(_graphics, headers, body)
+            if fmt in _graphics:
+                body = ('\\centerline{\\includegraphics[',
+                        ', '.join(opts),
+                        ']{', fname, '}}\n')
+            else:
+                body = (fname, '?\n')
         else:
-            body = ('Unable to generate embed',)
+            body = ('\\begin{verbatim}' + ''.join(body) + '\\end{verbatim}',)
 
         return chain(before, body, after)
 
-    def text(self, text):
-        return (self._sanitize(text), '\n')
+    def text(self, text, emph):
+        txt = self._sanitize(text)
+        if emph:
+            return ('\\emph{', txt, '}', '\n')
+        return (txt, '\n')
 
     def end(self):
         return ('\\end{document}',)
 
+
 if __name__ == '__main__':
     import sys
-    readoc = Document(sys.stdin)
+    import codecs
+    readoc = Document(codecs.getreader('utf-8')(sys.stdin))
     latex = Latex(readoc, toc=True, def_headers='readoc@')
 
-    latex.dump(sys.stdout)
+    latex.dump(codecs.getwriter('utf-8')(sys.stdout))
