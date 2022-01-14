@@ -15,9 +15,12 @@ def _plantuml(fmt, headers, body):
 
     JAR = os.getenv('PLANTUML_JAR', '/usr/share/plantuml/plantuml.jar')
     PATH = os.getenv('PLANTUML_PATH')
+    RELATIVE_INCLUDE = os.getenv('RELATIVE_INCLUDE')
 
     if PATH:
         cmd.append('-Dplantuml.include.path=' + PATH)
+    if RELATIVE_INCLUDE:
+        cmd.append('-DRELATIVE_INCLUDE=' + RELATIVE_INCLUDE)
 
     cmd.extend(['-jar', JAR, '-T' + fmt, '-p'])
     pipe(cmd, fname, body)
