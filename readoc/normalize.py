@@ -146,8 +146,13 @@ class Normalize(Stream):
         self.__text.append(text)
         return r
 
-    def text(self, text):
-        self.__text.append(text)
+    def text(self, text, emph):
+        text = text.strip()
+        if text:
+            if emph:
+                self.__text.append('*%s*' % (text,))
+            else:
+                self.__text.append(text)
         return ()
 
     def embed(self, lead, body, trail, headers):
