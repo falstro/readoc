@@ -1,10 +1,10 @@
-from . import graphviz, plantuml, b64embed
+from . import graphviz, plantuml, b64embed, fileembed
 
 from itertools import chain
 
 EMBED = dict(
     chain.from_iterable(m.EMBED.items() for m in
-                        (graphviz, plantuml, b64embed))
+                        (graphviz, plantuml, b64embed, fileembed))
 )
 
 
