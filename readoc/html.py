@@ -105,7 +105,7 @@ class HTML(Stream):
 
 
 if __name__ == '__main__':
-    import sys
+    from . import stdio as sys
     import codecs
     readoc = Document(codecs.getreader('utf-8')(sys.stdin))
     html = HTML(readoc,
