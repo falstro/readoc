@@ -136,14 +136,25 @@ class Latex(Stream):
              '\\end{figure}\n')
         )
 
+    def _listing(self, values):
+        return (
+            ('\\begin{lstlisting}[caption=',
+            ' '.join(self._sanitize_all(values)), ']\n'),
+            ('\\end{lstlisting}\n')
+        )
+
     def embed(self, lead, body, trail, headers):
         before = ()
         after = ()
         plugin = plugins.embed(headers)
+        verbatim = True
         opts = []
         for h in headers:
             if h.key.lower() == 'figure':
                 before, after = self._figure(h.values)
+            elif h.key.lower() == 'listing':
+                before, after = self._listing(h.values)
+                verbatim = False
             elif h.key.lower() == 'width':
                 opts.append('width=' + ' '.join(h.values))
             elif h.key.lower() == 'height':
@@ -159,13 +170,15 @@ class Latex(Stream):
                         ']{', fname, '}}\n')
             else:
                 body = (fname, '?\n')
-        else:
+        elif verbatim:
             body = ('\\begin{verbatim}' + ''.join(body) + '\\end{verbatim}',)
 
         return chain(before, body, after)
 
     def text(self, text, emph):
         txt = self._sanitize(text)
+        if not txt:
+            return  ()
         if emph:
             return ('\\emph{', txt, '}', '\n')
         return (txt, '\n')
