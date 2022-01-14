@@ -93,6 +93,27 @@ class Embeded(object):
 
         return False
 
+    def __dedent(self):
+        body = self.body
+        indent = 512
+        for line in body:
+            if not line:
+                continue
+            search = 0
+            for c in line:
+                if c.isspace():
+                    search += 1
+                else:
+                    break
+            else:
+                continue
+            indent = min(indent, search)
+        if indent > 0:
+            for i, line in enumerate(body):
+                if not line:
+                    continue
+                body[i] = line[indent:]
+
     def end(self):
         self.state = 0
         for h in self.headers.list:
@@ -100,6 +121,8 @@ class Embeded(object):
                 for v in h.values:
                     if v == 'discard':
                         return None
+                    if v == 'dedent':
+                        self.__dedent()
         return tags.embed(self.lead, self.body, self.trail,
                           self.headers.list)
 
