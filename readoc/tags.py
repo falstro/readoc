@@ -17,6 +17,7 @@ para = Tag('para')
 ordered = Tag('ordered')
 unordered = Tag('unordered')
 item = Tag('item')
+itembreak = Tag('itembreak')
 
 text = Tag('text')
 

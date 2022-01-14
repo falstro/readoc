@@ -114,6 +114,9 @@ class Latex(Stream):
         else:
             return ('\n\n',)
 
+    def itembreak(self):
+        return ('\n\n',)
+
     def unordered(self, level, lbl):
         if lbl:
             return ('\\begin{itemize}\n',)
@@ -139,7 +142,7 @@ class Latex(Stream):
     def _listing(self, values):
         return (
             ('\\begin{lstlisting}[caption=',
-            ' '.join(self._sanitize_all(values)), ']\n'),
+             ' '.join(self._sanitize_all(values)), ']\n'),
             ('\\end{lstlisting}\n')
         )
 
@@ -178,7 +181,7 @@ class Latex(Stream):
     def text(self, text, emph):
         txt = self._sanitize(text)
         if not txt:
-            return  ()
+            return ()
         if emph:
             return ('\\emph{', txt, '}', '\n')
         return (txt, '\n')

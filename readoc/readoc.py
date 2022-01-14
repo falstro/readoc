@@ -127,7 +127,6 @@ class Document(object):
     def __init__(self, fp):
         self.fp = fp
         self.indent = []
-        self.coindent = 0
         self.state = Document.HEAD
         self.separated = False
         self.headers = Headers()
@@ -164,10 +163,9 @@ class Document(object):
     next = __next__
 
     def _clean_lists(self):
-        for lvl, (xi, xt) in reversed(list(enumerate(self.indent))):
+        for lvl, (xi, xt, xco) in reversed(list(enumerate(self.indent))):
             self.q(xt(len(self.indent) - lvl, None))
         del self.indent[:]
-        self.coindent = 0
 
     def _clean_para(self):
         self._clean_lists()
@@ -205,11 +203,16 @@ class Document(object):
     def line(self, line):
         if self.embeded.state:
             tag = self.embeded.read(line)
-            if tag:
-                self.q(tag)
-            return
-
-        line = line.rstrip().expandtabs()
+            if not tag:
+                return
+            self.q(tag)
+            line = line.rstrip().expandtabs()
+            if not line:
+                return
+            # fall through, it was terminated on a non-empty line (e.g. no
+            # headers, or improperly separated headers)
+        else:
+            line = line.rstrip().expandtabs()
         # import sys
         # sys.stderr.write('\n>>> %s\n' % line)
 
@@ -253,37 +256,40 @@ class Document(object):
                 if lbl:
                     tag = tags.unordered
 
-            if tag:
-                xi, xt = -1, None
-                while self.indent:
-                    xi, xt = self.indent[-1]
-                    if i < xi:
-                        self.q(xt(len(self.indent), None))
-                        self.indent.pop()
-                    else:
-                        break
+            while self.indent:
+                xi, xt, xco = self.indent[-1]
+                xref = xi if tag else xco
+                if i < xref:
+                    self.q(xt(len(self.indent), None))
+                    self.indent.pop()
                 else:
-                    xi, xt = -1, None
+                    break
+            else:
+                xi, xt, xco = -1, None, 0
 
+            if tag:
                 if i == xi and not xt == tag:
                     self.q(xt(len(self.indent), None))
                     self.indent.pop()
-                    self.indent.append((i, tag))
+                    self.indent.append((i, tag, i+o))
                     self.q(tag(len(self.indent), lbl))
                 elif i > xi:
                     if self.state == Document.LIMBO:
                         self.q(tags.para(True))
                         self.state = Document.PARA
-                    self.indent.append((i, tag))
+                    self.indent.append((i, tag, i+o))
                     self.q(tag(len(self.indent), lbl))
 
                 self.q(tags.item(line[o:]))
-                self.coindent = i+o
                 return
 
-            if self.indent and i >= self.coindent:
-                self._text(line[o:])
-                return
+            if self.indent:
+                xi, xt, xco = self.indent[-1]
+                if i >= xco:
+                    if separated:
+                        self.q(tags.itembreak())
+                    self._text(line[o:])
+                    return
 
         # We're looking at body text or possibly a section heading,
         # clear out running lists.
@@ -346,10 +352,12 @@ class Document(object):
         for x in line[o+1:]:
             if x in args:
                 c += 1
+            else:
+                break
         return c
 
     def ordered(self, line, o=0):
-        for roman in (('i', 'v', 'x'), ('I', 'V', 'X')):
+        for roman in ('ivx', 'IVX'):
             c = self._check_set(line, o, roman)
             if c and line[o+c] == '.':
                 return line[o:o+c], self._skip(line, o+c+1)

@@ -17,6 +17,7 @@ class Stream(object):
             tags.ordered: self._ordered,
             tags.unordered: self._unordered,
             tags.item: self._item,
+            tags.itembreak: self._itembreak,
 
             tags.text: self._text,
 
@@ -92,6 +93,12 @@ class Stream(object):
         return self.item(text)
 
     def item(self, text):
+        return ()
+
+    def _itembreak(self):
+        return self.itembreak()
+
+    def itembreak(self):
         return ()
 
     def _text(self, text, emph):

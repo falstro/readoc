@@ -5,6 +5,14 @@ from .stream import Stream
 from .readoc import Document
 
 from itertools import chain
+from dataclasses import dataclass
+import typing as T
+
+
+@dataclass
+class ItemGenerator:
+    generator: T.Generator[str, None, None]
+    lead: str = ''
 
 
 class Normalize(Stream):
@@ -83,7 +91,7 @@ class Normalize(Stream):
         self.__wrapper.width = self.__width
 
     def _center(self, text, minindent=0):
-        indent = (self.__width-len(text))/2
+        indent = (self.__width-len(text))//2
         if indent < minindent:
             indent = minindent
         return (' '*indent, text)
@@ -97,7 +105,7 @@ class Normalize(Stream):
         else:
             sections = [0] + self.sections[1:level]
 
-        sections = '.'.join(str(l) for l in sections)
+        sections = '.'.join(str(lbl) for lbl in sections)
         if self.__section_trail:
             sections += '.'
         return self.__flush() + ('%s %s\n\n' % (sections, text),)
@@ -111,11 +119,12 @@ class Normalize(Stream):
     def unordered(self, level, lbl):
         r = self.__flush()
         if lbl:
-            self.__lists.append(self.__bullet())
+            self.__lists.append(ItemGenerator(self.__bullet()))
             self.__level += 1
         else:
             self.__lists.pop()
             self.__level -= 1
+            self.__item_continue()
             if not self.__lists:
                 self.__reset()
         return r
@@ -127,21 +136,30 @@ class Normalize(Stream):
                 gen = self.__numeric(int(lbl))
             else:
                 gen = self.__numeric()
-            self.__lists.append(gen)
+            self.__lists.append(ItemGenerator(gen))
             self.__level += 1
         else:
             self.__lists.pop()
             self.__level -= 1
+            self.__item_continue()
             if not self.__lists:
                 self.__reset()
         return r
 
+    def __item_continue(self):
+        if self.__lists:
+            self.__wrapper.subsequent_indent = self.__lists[-1].lead
+            self.__wrapper.initial_indent = self.__wrapper.subsequent_indent
+
     def item(self, text):
         r = self.__flush()
-        b = next(self.__lists[-1])
+        itgen = self.__lists[-1]
+        b = next(itgen.generator)
         ind = '  '*(self.__level+1)
+
+        itgen.lead = ind + ' '*len(b)
         self.__wrapper.initial_indent = ind + b
-        self.__wrapper.subsequent_indent = ind + ' '*len(b)
+        self.__wrapper.subsequent_indent = itgen.lead
         self.__wrapper.width = self.__width
         self.__text.append(text)
         return r
