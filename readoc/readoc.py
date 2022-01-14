@@ -155,11 +155,13 @@ class Document(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         n = self.pop()
         if n is None:
             raise StopIteration()
         return n
+
+    next = __next__
 
     def _clean_lists(self):
         for lvl, (xi, xt) in reversed(list(enumerate(self.indent))):
