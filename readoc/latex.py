@@ -33,7 +33,7 @@ class Latex(Stream):
 
     def _sanitize(self, text):
         # TODO sanitize text (i.e. escape latex control characters)
-        return text
+        return text.strip()
 
     def _sanitize_all(self, values):
         return (self._sanitize(v) for v in values)
