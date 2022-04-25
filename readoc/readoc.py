@@ -395,6 +395,8 @@ class Document(object):
         return None, o
 
     def unordered(self, line, o=0):
+        if len(line) < o+2:
+            return None, o
         if line[o] in ('-', '+', '*') and line[o+1].isspace():
             return line[o], self._skip(line, o+2)
         return None, o
