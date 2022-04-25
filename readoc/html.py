@@ -113,4 +113,4 @@ if __name__ == '__main__':
                 subtitle='h1 class="subtitle"',
                 sectionlevel=1)
 
-    html.dump(sys.stdout)
+    html.dump(codecs.getwriter('utf-8')(sys.stdout))
